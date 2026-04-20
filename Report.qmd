@@ -1,0 +1,479 @@
+---
+title: "U12 & U14 Team Report"
+format:
+  html:
+    grid:
+      body-width: 1200px
+      margin-width: 100px
+---
+
+## **Training Considerations Report for U12 and U14 Girls Football Team.**
+
+This report presents performance testing data collected with the girls football team at Teesside University between January 2025 and January 2026, alongside prior data collection. It focuses on relative power, strength, and reactive ability across the U12 and U14 age groups, using three key testing measures — countermovement jump (CMJ), isometric mid-thigh pull (IMTP), and repeated jump test (RJT) — the rationale for which is outlined below.
+
+Each athlete's scores have been converted to T-scores and assigned a performance band based on all available data across all age groups. These bands provide a reference point for interpreting current ability and tracking development across future testing time points. Based on their T-scores, each athlete has been assigned to an individualised training priority group targeting their lowest performing metric, with the aim of improving football performance and reducing injury risk.
+
+Please note that as performance bands are derived from data across all age groups including U16s, U12 and U14 athletes may appear to score lower than expected — this reflects the influence of the older age group on the overall mean rather than a concern about their individual development.
+
+
+
+```{r include=FALSE}
+
+library(readxl) # for reading Excel files
+library(janitor) # for cleaning column names
+library(tidyverse) # for data wrangling and plotting
+library(ggpubr)
+
+# import data IDs ------------------------------------------------------------------
+
+data <- read_csv("data.csv")
+
+data <- data %>%
+  select(id,
+         group,
+         year,
+         time_point,
+         age_at_test,
+         cmj_height,
+         rel_peak,
+         mean_rsi_ms)
+
+
+data$time_point <- factor(data$time_point, levels = c("Feb 2024", "April 2024", "August 2024", "April 2025", "Jan 2026")) 
+jan_data <- data %>% filter(time_point == "Jan 2026")
+
+
+```
+
+```{r echo = FALSE}
+
+
+# code for performance banding based on all previous data collected
+summary_stats <- data %>%
+  summarise(
+    across(
+      c(cmj_height, rel_peak, mean_rsi_ms),
+      list(
+        mean = ~ mean(.x, na.rm = TRUE),
+        sd   = ~ sd(.x,   na.rm = TRUE)
+      ),
+      .names = "{.col}_{.fn}"
+    )
+  )
+
+stats <- as.list(summary_stats)
+
+
+scored_data <- data %>%
+  mutate(
+    across(
+      c(cmj_height, rel_peak, mean_rsi_ms),
+      ~ {
+        z <- (.x - stats[[paste0(cur_column(), "_mean")]]) /
+               stats[[paste0(cur_column(), "_sd")]]
+        z
+      },
+      .names = "{.col}_z"
+    ),
+    across(
+      ends_with("_z"),
+      ~ 50 + 10 * .x,
+      .names = "{.col}_t"
+    )
+  )
+performance_banded <- scored_data %>%
+  mutate(
+    across(
+      ends_with("_t"),
+      ~ case_when(
+          .x < 40            ~ "Below Average",
+          .x >= 40 & .x < 45 ~ "Low Average",
+          .x >= 45 & .x < 55 ~ "Average",
+          .x >= 55 & .x < 60 ~ "High Average",
+          .x >= 60           ~ "Above Average",
+          TRUE               ~ NA_character_
+        ),
+      .names = "{.col}_band"
+    )
+  )
+
+
+  
+
+```
+
+## CMJ Height Jan 2026
+
+CMJ height reflects an athlete's ability to rapidly produce and apply force through the lower limbs, which underpins key football actions including jumping for headers, explosive acceleration, and change of direction. In U12–U16 female players this quality is particularly important to develop, as adolescent girls often experience a neuromuscular lag during puberty where body mass increases faster than lower-limb strength and power, creating a window of elevated injury risk. To improve CMJ height, athletes should focus on progressive lower-body strength work such as squats, romanian deadlifts, and split squats to build the maximal force foundation, combined with plyometric exercises including countermovement jump variations, box jumps, and broad jumps to develop rate of force development and the ability to express that strength explosively; together these two training qualities have consistently been shown to improve jump height and reduce non-contact injury risk in adolescent female athletes. 
+
+```{r echo = FALSE}
+plot_cmj <- function(g) {
+  performance_banded %>%
+    filter(time_point == "Jan 2026",
+           group == g) %>%
+    select(id, cmj_height_z_t) %>%
+    mutate(
+      cmj_height_z_t = as.numeric(cmj_height_z_t),
+      colour_band = case_when(
+        cmj_height_z_t < 45 ~ "red",
+        cmj_height_z_t >= 45 & cmj_height_z_t <= 55 ~ "orange",
+        cmj_height_z_t > 55 ~ "green"
+      )
+    ) %>%
+    ggplot(aes(
+      x = cmj_height_z_t,
+      y = reorder(id, cmj_height_z_t),
+      colour = colour_band
+    )) +
+    geom_segment(aes(
+      x = 0,
+      xend = cmj_height_z_t,
+      y = reorder(id, cmj_height_z_t),
+      yend = reorder(id, cmj_height_z_t)
+    ), linewidth = 2) +
+    scale_colour_identity() +
+    labs(
+      title = paste("CMJ Height T Scores —", g, "— Jan 2026"),
+      x = "T Score",
+      y = "Athlete ID"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(axis.text.y = element_text(size = 8))
+}
+
+```
+:::: {layout-ncol=2}
+
+```{r echo=FALSE}
+plot_cmj("u12s")
+```
+
+```{r echo=FALSE}
+plot_cmj("u14s")
+```
+
+::::
+
+
+# Relative Peak Power (IMTP) for Jan 2026
+
+Relative peak force from the isometric mid-thigh pull (IMTP) assesses an athlete's capacity to produce maximal lower-limb force, which is fundamental to key football actions including acceleration, sprinting, and tackling. In elite youth female soccer players, higher relative IMTP strength is directly associated with superior rebound jump performance, demonstrating that the ability to express strength explosively is underpinned by maximal force capacity. Research has shown that relative strength plateaus across age groups in female youth soccer without targeted intervention, meaning this quality will not develop with maturation alone. Low relative strength is a significant concern for injury risk, with female soccer players carrying the highest relative risk of ACL injury among all adolescent female sports. To improve relative peak force, athletes should engage in progressive bilateral and unilateral lower-body strength training including squats, romanian deadlifts, split squats, and hip hinge variations, with a focus on increasing loading over time to drive neuromuscular and structural adaptations that translate directly to sprint, power, and injury resilience on the pitch. 
+
+```{r echo=FALSE}
+plot_relpeak <- function(g) {
+  performance_banded %>%
+    filter(time_point == "Jan 2026",
+           group == g) %>%
+    select(id, rel_peak_z_t) %>%
+    mutate(
+      rel_peak_z_t = as.numeric(rel_peak_z_t),
+      colour_band = case_when(
+        rel_peak_z_t < 45 ~ "red",
+        rel_peak_z_t >= 45 & rel_peak_z_t <= 55 ~ "orange",
+        rel_peak_z_t > 55 ~ "green"
+      )
+    ) %>%
+    ggplot(aes(
+      x = rel_peak_z_t,
+      y = reorder(id, rel_peak_z_t),
+      colour = colour_band
+    )) +
+    geom_segment(aes(
+      x = 0,
+      xend = rel_peak_z_t,
+      y = reorder(id, rel_peak_z_t),
+      yend = reorder(id, rel_peak_z_t)
+    ), linewidth = 2) +
+    scale_colour_identity() +
+    labs(
+      title = paste("Relative Peak Power T Scores —", g, "— Jan 2026"),
+      x = "T Score",
+      y = "Athlete ID"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(axis.text.y = element_text(size = 8))
+}
+
+
+```
+:::: {layout-ncol=2}
+
+```{r echo=FALSE}
+plot_relpeak("u12s")
+```
+
+```{r echo=FALSE}
+plot_relpeak("u14s")
+```
+
+::::
+
+# Mean RSI (RJT) for Jan 2026
+
+Mean RSI from the repeated jump test (RJT) measures reactive strength and stretch-shortening cycle (SSC) efficiency, the ability to rapidly absorb and redirect force during short ground contact tasks, which underpins repeated sprinting, rapid change of direction, and rebounding actions that are central to football match play. Research shows that SSC function develops during maturation through morphological and neurophysiological mechanisms, but adolescent girls demonstrate lower SSC capability compared to boys, and this gap does not close automatically without targeted training intervention. Importantly, SSC deficits in this population are also a meaningful injury concern, as dynamic jumping assessments across the SSC continuum are recognised tools for identifying ACL injury risk factors in young female athletes. To improve mean RSI, athletes should progress through fast SSC-focused plyometric exercises including pogo jumps, ankle stiffness drills, hurdle hops, and repeated jump test progressions, with ground contact time being the key coaching cue. 
+
+```{r echo=FALSE}
+plot_rsi <- function(g) {
+  performance_banded %>%
+    filter(time_point == "Jan 2026",
+           group == g) %>%
+    select(id, mean_rsi_ms_z_t) %>%
+    mutate(
+      mean_rsi_ms_z_t = as.numeric(mean_rsi_ms_z_t),
+      colour_band = case_when(
+        mean_rsi_ms_z_t < 45 ~ "red",
+        mean_rsi_ms_z_t >= 45 & mean_rsi_ms_z_t <= 55 ~ "orange",
+        mean_rsi_ms_z_t > 55 ~ "green"
+      )
+    ) %>%
+    ggplot(aes(
+      x = mean_rsi_ms_z_t,
+      y = reorder(id, mean_rsi_ms_z_t),
+      colour = colour_band
+    )) +
+    geom_segment(aes(
+      x = 0,
+      xend = mean_rsi_ms_z_t,
+      y = reorder(id, mean_rsi_ms_z_t),
+      yend = reorder(id, mean_rsi_ms_z_t)
+    ), linewidth = 2) +
+    scale_colour_identity() +
+    labs(
+      title = paste("Mean RSI (ms) T Scores —", g, "— Jan 2026"),
+      x = "T Score",
+      y = "Athlete ID"
+    ) +
+    theme_minimal(base_size = 14) +
+    theme(axis.text.y = element_text(size = 8))
+}
+
+
+```
+:::: {layout-ncol=2}
+
+```{r echo=FALSE}
+plot_rsi("u12s")
+```
+
+```{r echo=FALSE}
+plot_rsi("u14s")
+```
+
+::::
+
+## Performance Banding
+
+Calculating the mean and standard deviation for CMJ jump height, relative peak IMTP power, and mean RSI from the repeated jump test lets you standardise each athlete’s score as a z score, i.e. how many standard deviations they sit above or below the group mean. Z scores are widely used in sports science to place different physical tests onto a common, unit free scale so that coaches can compare qualities with different units within and between athletes. These z scores can then be linearly transformed into T scores, which give a coach friendly 20–80 style scale centred on 50 that is easier to interpret when creating performance bands. Using CMJ, IMTP and RSI data in this way is consistent with current practice where z score based composites (e.g. Total Score of Athleticism) are used to distinguish higher level from lower level players and to communicate multi test profiles to coaches. 
+T scores have been banded into these sections based on all previous data provided for CMJ Height, IMTP and RJT.
+
+```{r include=FALSE}
+library(dplyr)
+library(tidyr)
+library(stringr)
+
+# 1. Pivot band columns long
+long_data <- performance_banded %>%
+  select(cmj_height, rel_peak, mean_rsi_ms, ends_with("_t_band")) %>%
+  pivot_longer(
+    cols = ends_with("_t_band"),
+    names_to = "metric",
+    values_to = "band"
+  ) %>%
+  mutate(
+    metric = str_remove(metric, "_z_t_band$"),
+    band = case_when(
+      band == "Below Average" ~ "Below Average (<40%)",
+      band == "Low Average"   ~ "Low Average (40–45%)",
+      band == "Average"       ~ "Average (45–55%)",
+      band == "High Average"  ~ "High Average (55–60%)",
+      band == "Above Average" ~ "Above Average (>60%)"
+    )
+  )
+
+# 2. Compute min/max per band × metric
+ranges <- long_data %>%
+  group_by(band, metric) %>%
+  summarise(
+    min_val = min(
+      case_when(
+        metric == "cmj_height"   ~ cmj_height,
+        metric == "rel_peak"     ~ rel_peak,
+        metric == "mean_rsi_ms"  ~ mean_rsi_ms
+      ),
+      na.rm = TRUE
+    ),
+    max_val = max(
+      case_when(
+        metric == "cmj_height"   ~ cmj_height,
+        metric == "rel_peak"     ~ rel_peak,
+        metric == "mean_rsi_ms"  ~ mean_rsi_ms
+      ),
+      na.rm = TRUE
+    ),
+    .groups = "drop"
+  )
+
+# 3. Format ranges
+formatted <- ranges %>%
+  mutate(
+    formatted = case_when(
+      metric == "cmj_height"   ~ sprintf("%.1fcm – %.1fcm", min_val, max_val),
+      metric == "rel_peak"     ~ sprintf("%.0fN – %.0fN", min_val, max_val),
+      metric == "mean_rsi_ms"  ~ sprintf("%.2fm/s – %.2fm/s", min_val, max_val)
+    )
+  ) %>%
+  select(band, metric, formatted)
+
+# 4. Create complete grid
+bands <- unique(formatted$band)
+metrics <- c("cmj_height", "rel_peak", "mean_rsi_ms")
+
+complete_grid <- tidyr::expand_grid(
+  band = bands,
+  metric = metrics
+)
+
+# 5. Join + pivot to stable table
+stable_table <- complete_grid %>%
+  left_join(formatted, by = c("band", "metric")) %>%
+  mutate(
+    formatted = dplyr::coalesce(formatted, "—")
+  ) %>%
+  pivot_wider(
+    names_from = metric,
+    values_from = formatted
+  ) %>%
+  arrange(factor(band, levels = bands)) %>%
+  rename(
+    `Performance Band` = band,
+    `CMJ Height` = cmj_height,
+    `Relative Peak Power (N)` = rel_peak,
+    `Mean RSI (m/s)` = mean_rsi_ms
+  )
+stable_table <- stable_table %>%
+  mutate(
+    `Performance Band` = factor(
+      `Performance Band`,
+      levels = c(
+        "Below Average (<40%)",
+        "Low Average (40–45%)",
+        "Average (45–55%)",
+        "High Average (55–60%)",
+        "Above Average (>60%)"
+      )
+    )
+  ) %>%
+  arrange(`Performance Band`)
+```
+
+```{r echo=FALSE}
+library(reactable)
+
+# Colour palette as a named list (avoids jsonlite warnings)
+band_palette <- list(
+  "Below Average (<40%)" = "#ffcccc",
+  "Low Average (40–45%)" = "#ffdddd",
+  "Average (45–55%)"     = "#ffe8b3",
+  "High Average (55–60%)"= "#d6f5d6",
+  "Above Average (>60%)" = "#c2f0c2"
+)
+
+reactable(
+  stable_table,
+  striped = TRUE,
+  highlight = TRUE,
+  bordered = TRUE,
+  defaultColDef = colDef(align = "center"),
+  columns = list(
+    `Performance Band` = colDef(
+      style = function(value) {
+        list(
+          background = band_palette[[value]],
+          fontWeight = "bold"
+        )
+      }
+    )
+  )
+)
+```
+
+## Training Recommendations
+
+Training recommendations within this report have been individually assigned to each athlete based on their lowest performing metric across the three testing measures, CMJ height, relative peak IMTP force, and mean RSI from the RJT. This approach is grounded in the principle that an athlete's weakest physical quality represents their greatest limiter to both performance and injury resilience. Rather than applying a uniform group programme, targeting the lowest scoring metric ensures that training stimulus is directed where adaptation is most needed. Athletes have been assigned to one of three priority groups: Strength Priority (lowest IMTP T-score), where the primary target is maximal lower-limb force development, Reactive Strength Priority (lowest RSI T-score), where the focus is stretch-shortening cycle efficiency and ground contact mechanics, and Power Priority (lowest CMJ T-score), where the emphasis is on rate of force development and explosive lower-body power expression. Each group has been provided with example exercises, a recommended weekly session structure, and specific injury considerations relevant to their deficit. This is particularly important in U12–U16 female athletes, who are navigating a period of rapid growth during which neuromuscular development frequently lags behind increases in body mass, creating windows of elevated injury risk, most notably for non-contact ACL injury, if physical deficits are left unaddressed. Individualised training that targets the specific neuromuscular quality most in need of development therefore serves a dual purpose, improving football performance and proactively managing injury risk during this developmental period. 
+
+```{r echo=FALSE}
+
+#chunk1
+training_groups <- performance_banded %>%
+  filter(time_point == "Jan 2026") %>%
+  select(id, group,
+         cmj_height_z_t,
+         rel_peak_z_t,
+         mean_rsi_ms_z_t) %>%
+  mutate(
+    lowest_metric = case_when(
+      rel_peak_z_t <= cmj_height_z_t & rel_peak_z_t <= mean_rsi_ms_z_t ~ "IMTP",
+      mean_rsi_ms_z_t <= cmj_height_z_t & mean_rsi_ms_z_t <= rel_peak_z_t ~ "RSI",
+      TRUE ~ "CMJ"
+    ),
+    training_priority = case_when(
+      lowest_metric == "IMTP" ~ "Strength Priority",
+      lowest_metric == "RSI"  ~ "Reactive Strength Priority",
+      lowest_metric == "CMJ"  ~ "Power Priority"
+    )
+  )
+
+#chunk2
+recommendations <- tibble(
+  training_priority = c(
+    "Strength Priority",
+    "Reactive Strength Priority",
+    "Power Priority"
+  ),
+  primary_focus = c(
+    "Maximal lower-body strength development",
+    "Reactive strength and stretch-shortening cycle efficiency",
+    "Explosive power and rate of force development"
+  ),
+  example_exercises = c(
+    "Squats, romanian deadlifts, goblet squats, split squats, controlled landing mechanics",
+    "Pogo jumps, ankle stiffness drills, hurdle hops, short-contact RJT progressions, bounding",
+    "CMJ variations, trap bar deadlift, med ball throws, box jumps, broad jumps"
+  ),
+  session_structure = c(
+    "2–3 strength sessions/week; low-intensity jump coordination maintained",
+    "1 strength session + 2 fast SSC/plyometric sessions/week",
+    "1–2 strength sessions + 1 explosive power session/week"
+  ),
+  injury_consideration = c(
+    "ACL risk elevated with low relative strength; monitor landing mechanics closely",
+    "Progress contact time reduction gradually; do not sacrifice mechanics for speed",
+    "Ensure deceleration and landing control before increasing jump volume"
+  )
+)
+
+#chunk3
+library(reactable) 
+training_groups %>%
+  left_join(recommendations, by = "training_priority") %>%
+  arrange(training_priority, group, id) %>%
+  select(id, group, training_priority, primary_focus, 
+         example_exercises, session_structure, injury_consideration) %>%
+  reactable(
+    groupBy = "training_priority",
+    striped = TRUE,
+    highlight = TRUE,
+    bordered = TRUE,
+    defaultColDef = colDef(align = "left", minWidth = 120),
+    columns = list(
+      id                    = colDef(name = "Athlete ID"),
+      group                 = colDef(name = "Age Group"),
+      training_priority     = colDef(name = "Training Priority"),
+      primary_focus         = colDef(name = "Primary Focus"),
+      example_exercises     = colDef(name = "Example Exercises"),
+      session_structure     = colDef(name = "Session Structure"),
+      injury_consideration  = colDef(name = "Injury Considerations")
+    )
+  )
+
+```
